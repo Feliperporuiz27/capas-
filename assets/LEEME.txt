@@ -1,0 +1,3 @@
+Deja aquí tus fotos (JPG, máx. ~400 KB cada una) y escribe su ruta en la sección IMAGES de content.js, por ejemplo:
+  heroPB: 'assets/plaza-hoy.jpg'
+Las fotos de archivo solo deben subirse con su crédito y licencia.
