@@ -513,8 +513,14 @@ function pickVoice() {
   } catch (e) {}
 }
 if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-function speak(text) {
-  if (!S.audio || !('speechSynthesis' in window) || !text) return;
+let clip = null;
+function speak(text, id) {
+  if (!S.audio || !text) return;
+  stopSpeech();
+  if (id && typeof AUDIO !== 'undefined' && AUDIO[id]) {
+    try { clip = new Audio(AUDIO[id]); clip.play().catch(() => {}); return; } catch (e) {}
+  }
+  if (!('speechSynthesis' in window)) return;
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/…/g, '. '));
@@ -522,8 +528,8 @@ function speak(text) {
     speechSynthesis.speak(u);
   } catch (e) {}
 }
-function stopSpeech() { try { speechSynthesis.cancel(); } catch (e) {} }
-function pauseSpeech(p) { try { p ? speechSynthesis.pause() : speechSynthesis.resume(); } catch (e) {} }
+function stopSpeech() { try { if (clip) { clip.pause(); clip = null; } } catch (e) {} try { speechSynthesis.cancel(); } catch (e) {} }
+function pauseSpeech(p) { try { if (clip) p ? clip.pause() : clip.play().catch(() => {}); } catch (e) {} try { p ? speechSynthesis.pause() : speechSynthesis.resume(); } catch (e) {} }
 
 /* ---------- cámara ---------- */
 let stream = null, camFailed = false;
@@ -553,7 +559,7 @@ async function askOrientation() {
 function showWelcome() {
   document.body.classList.add('dark');
   const s = mount(el(`<section class="screen welcome" aria-label="Bienvenida">
-    <div class="art">${ART.hero('welcome')}</div><div class="shade"></div>
+    <div class="art">${IMAGES.heroWelcome ? `<img src="${IMAGES.heroWelcome}" alt="" style="width:100%;height:100%;object-fit:cover">` : ART.hero('welcome')}</div><div class="shade"></div>
     <div class="content">
       <div class="topbar">
         <div class="lang" aria-label="Idioma"><span class="on">ES</span><span class="off">EN · pronto</span></div>
@@ -566,7 +572,7 @@ function showWelcome() {
       <div class="caption hidden" id="cap" style="background:rgba(255,255,255,.12);color:#fff"><span class="who" style="color:#9cc4ff">La Archivista</span>${esc(VO_BV.welcome)}</div>
       <button class="btn" id="go">Empezar ${I.arrow}</button>
     </div></section>`));
-  $('#aud', s).onclick = () => { S.audio = !S.audio; save(); $('#aud', s).innerHTML = S.audio ? I.soundOn : I.soundOff; $('#cap', s).classList.toggle('hidden', !S.audio || !S.cc); if (S.audio) { beep(880, .3); speak(VO_BV.welcome); } else stopSpeech(); };
+  $('#aud', s).onclick = () => { S.audio = !S.audio; save(); $('#aud', s).innerHTML = S.audio ? I.soundOn : I.soundOff; $('#cap', s).classList.toggle('hidden', !S.audio || !S.cc); if (S.audio) { beep(880, .3); speak(VO_BV.welcome, 'BV-02'); } else stopSpeech(); };
   $('#go', s).onclick = () => { sfx.tap(); showSafety(); };
 }
 
@@ -585,7 +591,7 @@ function showSafety() {
     ${S.cc ? `<div class="caption"><span class="who">La Archivista</span>${esc(VO_BV.safety)}</div>` : ''}
     <button class="btn" id="ok" disabled style="margin-top:auto">Entendido</button>
   </div></section>`));
-  speak(VO_BV.safety);
+  speak(VO_BV.safety, 'BV-03');
   later(() => { $('#ok', s).disabled = false; }, 3000);
   $('#ok', s).onclick = () => { sfx.tap(); showMode(); };
 }
@@ -622,7 +628,7 @@ function showMode() {
 function showTutorial() {
   const cam = wantsCamera();
   const s = mount(el(`<section class="screen scene"><div class="stage">
-      ${cam ? '<video playsinline muted autoplay></video>' : `<div class="bg2d">${ART.hero('pb')}</div>`}
+      ${cam ? '<video playsinline muted autoplay></video>' : `<div class="bg2d">${viewArt('pb')}</div>`}
       <div class="archive-layer" id="arch"><div class="pending" style="top:18%;height:40%"><b>Imagen de práctica</b><span>Aquí aparecerá la capa del pasado.</span></div></div>
       <div class="contour" id="ct"><svg viewBox="0 0 300 200"><rect class="contour-path" x="95" y="30" width="110" height="160" rx="4" fill="none"/></svg></div>
       <div class="vignette"></div>
@@ -632,7 +638,7 @@ function showTutorial() {
     <div class="sheet"><div class="grab"></div><div class="step">Tutorial · 1 de 3</div><h2 class="h2" id="tt">Alinea</h2><p class="body" id="tx">Mueve el teléfono hasta que la línea ámbar coincida con lo que tienes delante.</p><div id="extra"></div></div>
   </section>`));
   if (cam) attach($('video', s));
-  speak(VO_BV.tutorial);
+  speak(VO_BV.tutorial, 'BV-05');
   $('#skip', s).onclick = () => showControls();
   aligner(s, $('#ct', s), $('#am', s), () => {
     $('.step', s).textContent = 'Tutorial · 2 de 3'; $('#tt', s).textContent = 'Desliza'; $('#tx', s).innerHTML = 'Desliza hacia <b>ANTES</b> para levantar una capa.';
@@ -674,7 +680,7 @@ function showControls() {
     ${S.cc ? `<div class="caption"><span class="who">La Archivista</span>${esc(VO_BV.controls)}</div>` : ''}
     <button class="btn" id="go" style="margin-top:auto">Empezar en la Plaza ${I.arrow}</button>
   </div></section>`));
-  speak(VO_BV.controls);
+  speak(VO_BV.controls, 'BV-06');
   $('#go', s).onclick = () => { S.onboarded = true; save(); const p = pendingStop || 'pb'; pendingStop = null; showStop(p); };
 }
 
@@ -689,6 +695,7 @@ function nav(active) {
     <button data-t="info" class="${active === 'info' ? 'on' : ''}">${I.info}<span>Info</span></button></nav>`;
 }
 function wireNav(s) { $$('.nav button', s).forEach(b => b.onclick = () => ({ home: showHome, huellas: showHuellas, map: showMap, info: showInfo })[b.dataset.t]()); }
+function viewArt(id) { const k = { pb: 'viewPB', ma: 'viewMA', pc: 'viewPC' }[id]; return IMAGES[k] ? `<img src="${IMAGES[k]}" alt="" style="width:100%;height:100%;object-fit:cover">` : ART.hero(id); }
 function heroArt(id) { const k = { pb: 'heroPB', ma: 'heroMA', pc: 'heroPC' }[id]; return IMAGES[k] ? `<img src="${IMAGES[k]}" alt="">` : `<div class="art">${ART.hero(id)}</div>`; }
 
 function showHome() {
@@ -699,7 +706,7 @@ function showHome() {
       <span class="tags"><span class="chip">${esc(st.name)}</span><span class="chip">${I.clock} ${st.duration}</span></span>
       <span class="state">${S.huellas[id] ? I.check : I.arrow}</span></button>`; };
   const microCard = id => { const m = MICROS[id], open = S.visited[m.stop] || S.micros[id];
-    return `<button class="card-s ${open ? '' : 'locked'}" data-micro="${id}"><div class="thumb c-${m.stop}"><div class="art">${ART.hero(m.stop)}</div><span class="mono">${id.replace('-', ' ')}</span><span class="tag">${S.micros[id] ? '✓ vista' : (open ? '20–45 s' : 'bloqueada')}</span></div>
+    return `<button class="card-s ${open ? '' : 'locked'}" data-micro="${id}"><div class="thumb c-${m.stop}"><div class="art">${heroArt(m.stop)}</div><span class="mono">${id.replace('-', ' ')}</span><span class="tag">${S.micros[id] ? '✓ vista' : (open ? '20–45 s' : 'bloqueada')}</span></div>
       <div class="t">${esc(m.title)}</div><div class="m">${open ? '' : I.lock.replace('<svg', '<svg width="12" height="12"')} ${esc(STOPS[m.stop].name)}</div></button>`; };
   const s = mount(el(`<section class="screen home">
     <header><div><div class="eyebrow">Explora</div><h1 class="h1">El centro</h1></div><div class="loc">${I.pin} Medellín, CO</div></header>
@@ -814,7 +821,7 @@ function sceneShell(sc, opts = {}) {
   const cam = sc.camera && wantsCamera() && !opts.review && !opts.force2d;
   document.body.classList.add('dark');
   const s = mount(el(`<section class="screen scene" data-scene="${sc.idx}">
-    <div class="stage">${cam ? '<video playsinline muted autoplay></video>' : `<div class="bg2d">${ART.hero(sc.stop)}</div>`}<div class="vignette"></div></div>
+    <div class="stage">${cam ? '<video playsinline muted autoplay></video>' : `<div class="bg2d">${viewArt(sc.stop)}</div>`}<div class="vignette"></div></div>
     <div class="hud">
       ${opts.review ? `<button class="icon-btn dark exit-txt" id="x" aria-label="Volver al desafío">${I.close.replace('<svg', '<svg width="16" height="16"')} Desafío</button>` : `<button class="icon-btn dark" id="x" aria-label="Salir">${I.back}</button>`}
       <div class="where">${opts.review ? 'Repaso' : `Parada ${st.n} · escena ${sc.idx}/4`}<b>${esc(sc.title)}</b></div>
@@ -932,7 +939,7 @@ function sChoose(sc, opts) {
     $$('[data-o]', s).forEach(x => x.classList.add(x === b ? 'sel' : 'dim'));
     o.correct ? sfx.ok() : sfx.tap();
     $('#rv', s).innerHTML = `<div class="fb ${o.correct ? 'good' : 'bad'}">${esc(o.correct ? sc.ok : sc.ko)}</div><p class="body">${esc(sc.reveal)}</p>${voCaption(sc.vo)}<div class="src">Fuentes: ${esc(sc.sources)}</div>${nextBtn(sc, opts)}`;
-    wireNext(s, sc, opts); speak(sc.vo);
+    wireNext(s, sc, opts); speak(sc.vo, sc.id);
     $('#rv', s).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 }
@@ -963,7 +970,7 @@ function sCompare(sc, opts) {
           played = true; sfx.ok();
           const out = el(`<div><div class="caption" style="background:#E6F7F5"><span class="who" style="color:var(--seal-sound)">${esc(sc.sound.label)}</span>${esc(sc.sound.desc)}</div>
             <p class="body"><b>${esc(sc.subtitle)}</b></p>${voCaption(sc.vo)}${microLink(sc.micro)}<div class="src">Fuentes: ${esc(sc.sources)}</div>${nextBtn(sc, opts)}</div>`);
-          body.appendChild(out); wireMicro(s, sc); wireNext(s, sc, opts); speak(sc.vo);
+          body.appendChild(out); wireMicro(s, sc); wireNext(s, sc, opts); speak(sc.vo, sc.id);
           later(() => { if (+$('input', sl.node).value > 95) { arch.style.transition = 'opacity 1.5s'; arch.style.opacity = .5; later(() => arch.style.transition = '', 1600); } }, 9000);
         }
       });
@@ -981,7 +988,7 @@ function sCompare(sc, opts) {
         if (i === 2) { $('.stage', s).animate([{ opacity: 1 }, { opacity: .25 }, { opacity: 1 }], { duration: 600 }); }
         info.innerHTML = `<div class="caption"><b>${esc(L.title)}</b> ${esc(L.text || '')}</div>${(first || i === 0) && L.vo ? voCaption(L.vo) : ''}${L.micro ? microLink(L.micro) : ''}`;
         wireMicro(s, sc);
-        if (first && L.vo) speak(L.vo);
+        if (first && L.vo) speak(L.vo, sc.id + '-' + L.key);
         if (seen.size === 4 && !$('[data-next]', s)) { const t = el(`<div><div class="src">Fuentes: ${esc(sc.sources)}</div>${nextBtn(sc, opts)}</div>`); body.appendChild(t); wireNext(s, sc, opts); }
       }, true);
       body.appendChild(sl.node); body.appendChild(info);
@@ -1005,7 +1012,7 @@ function sCounter(sc, opts) {
     <div class="plan"><span class="note">ESQUEMA · RECONSTRUCCIÓN · posiciones sin levantar en terreno</span>${pos.map(([x, y]) => `<i style="left:${x}%;top:${y}%"></i>`).join('')}</div>
     <div class="counter-row"><div class="odometer" id="od">10<small>esculturas</small></div><button class="plus pulse" id="pl" aria-label="Ver cómo creció la oferta">+</button></div>
     ${voCaption(sc.vo)}<div id="af"></div>${microLink(sc.micro)}`;
-  wireMicro(s, sc); speak(sc.vo);
+  wireMicro(s, sc); speak(sc.vo, sc.id);
   let k = 0; const dots = $$('.plan i', s);
   const light = n => dots.forEach((d, i) => d.classList.toggle('on', i < n));
   light(10);
@@ -1043,7 +1050,7 @@ function sHotspots(sc, opts) {
       };
     });
     body.innerHTML = `${sc.labels ? sc.labels.map(l => `<div class="caption"><b>${esc(l.title)}</b> · ${esc(l.text)}</div>`).join('') : `<p class="body" style="margin:0">Toca los puntos para mirarlo de cerca.</p>`}${voCaption(sc.vo)}<div id="rd"></div>`;
-    speak(sc.vo);
+    speak(sc.vo, sc.id);
     if (needed === 0) later(ready, 1500);
   };
   let isReady = false;
@@ -1063,7 +1070,7 @@ function sOrder(sc, opts) {
   body.innerHTML = `<p class="body" style="margin:0">${esc(sc.prompt)}</p>
     <div class="slots">${sc.slots.map(y => `<div class="slot" data-slot="${y}"><span class="y">${y}</span></div>`).join('')}</div>
     <div class="cardsel">${shuffled.map(c => `<button data-card="${c.id}">${esc(c.text)}</button>`).join('')}</div><div id="hint"></div><div id="dn"></div>${microLink(sc.micro)}`;
-  wireMicro(s, sc); speak(sc.voStart);
+  wireMicro(s, sc); speak(sc.voStart, sc.id + '-A');
   let picked = null, errors = {}, placed = 0;
   const pick = b => { $$('.cardsel button', s).forEach(x => x.classList.toggle('picked', x === b)); picked = b; $$('.slot', s).forEach(sl => sl.classList.toggle('ready', !!b && !sl.querySelector('.placed'))); };
   const tryPlace = (cardBtn, slotEl) => {
@@ -1074,7 +1081,7 @@ function sOrder(sc, opts) {
       $('#hint', s).innerHTML = '';
       if (placed === sc.cards.length) {
         sfx.motif(); $('.slots', s).animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.15)' }, { filter: 'brightness(1)' }], { duration: 800 });
-        $('#dn', s).innerHTML = `<div class="fb good">${esc(sc.done)}</div>${voCaption(sc.vo)}<div class="src">Fuentes: ${esc(sc.sources)}</div>${nextBtn(sc, opts)}`; wireNext(s, sc, opts); speak(sc.vo);
+        $('#dn', s).innerHTML = `<div class="fb good">${esc(sc.done)}</div>${voCaption(sc.vo)}<div class="src">Fuentes: ${esc(sc.sources)}</div>${nextBtn(sc, opts)}`; wireNext(s, sc, opts); speak(sc.vo, sc.id + '-B');
       }
     } else {
       sfx.err(); slotEl.classList.remove('shake'); void slotEl.offsetWidth; slotEl.classList.add('shake');
@@ -1121,7 +1128,7 @@ function sDome(sc, opts) {
         fin = true; r.disabled = true; svg.classList.remove('lines');
         $('.dome', s).animate([{ transform: 'scale(1)' }, { transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 500, transformOrigin: '172px 122px' });
         $('#d3', s).innerHTML = `<p class="body"><b>${esc(sc.done)}</b></p><span class="stamp">${esc(sc.stamp)}</span>${voCaption(sc.vo)}<div class="src">Fuentes: ${esc(sc.sources)}</div>${nextBtn(sc, opts)}`;
-        wireNext(s, sc, opts); speak(sc.vo); stopTone();
+        wireNext(s, sc, opts); speak(sc.vo, sc.id); stopTone();
       }
     });
     function stopTone() { beep(110, .4, 'sine', .08); }
@@ -1132,7 +1139,7 @@ function sDome(sc, opts) {
 /* ---------- PC-03 la lupa ---------- */
 function sLens(sc, opts) {
   const { s, cam, body, stage } = sceneShell(sc, opts);
-  const lens = el(`<div class="lens" aria-hidden="true">${cam ? '<video playsinline muted autoplay></video>' : `<div class="lens-bg">${ART.hero('pc')}</div>`}<div class="tex tex-stone"></div><div class="tex tex-plaster"></div></div>`);
+  const lens = el(`<div class="lens" aria-hidden="true">${cam ? '<video playsinline muted autoplay></video>' : `<div class="lens-bg">${IMAGES.detailPC ? `<img src="${IMAGES.detailPC}" alt="" style="width:100%;height:100%;object-fit:cover">` : viewArt('pc')}</div>`}<div class="tex tex-stone"></div><div class="tex tex-plaster"></div></div>`);
   s.appendChild(lens); if (cam) attach($('video', lens));
   const lbg = $('video', lens) || $('.lens-bg', lens);
   const place = (x, y) => { const sr = s.getBoundingClientRect(); x = Math.max(75, Math.min(sr.width - 75, x)); y = Math.max(120, Math.min(sr.height * .55, y)); lens.style.left = (x - 75) + 'px'; lens.style.top = (y - 75) + 'px'; const W = sr.width * 3, H = sr.height * 3; lbg.style.width = W + 'px'; lbg.style.height = H + 'px'; lbg.style.left = (-(x * 3) + 75) + 'px'; lbg.style.top = (-(y * 3) + 75) + 'px'; };
@@ -1148,7 +1155,7 @@ function sLens(sc, opts) {
     const st = $('.tex-stone', lens), pl = $('.tex-plaster', lens);
     st.classList.add('on'); later(() => { st.classList.remove('on'); pl.classList.add('on'); }, 1500); later(() => { pl.classList.remove('on'); setSeal(s, null); }, 3000);
     $('#lr', s).innerHTML = `<div class="fb ${o.correct ? 'good' : 'bad'}">${esc(o.fb)}</div><p class="body">${esc(sc.reveal)}</p><p class="body"><b>${esc(sc.extra)}</b></p>${voCaption(sc.vo)}<div class="src">Fuentes: ${esc(sc.sources)}</div>${nextBtn(sc, opts)}`;
-    wireNext(s, sc, opts); speak(sc.vo);
+    wireNext(s, sc, opts); speak(sc.vo, sc.id);
   });
   fallbackNext(s, sc, opts, 40000);
 }
@@ -1160,7 +1167,7 @@ function sHuella(sc, opts) {
   body.innerHTML = `${sc.pre ? sc.pre.map(p => `<div class="caption"><b>${esc(p.title)}</b> · ${esc(p.text)}</div>`).join('') : ''}
     <div class="huella-card" id="hc"><div class="k">HUELLA ${st.n} DE 3</div><div class="y">${hu.years}</div><p>${esc(hu.text)}</p><div class="ev">Evidencia: ${esc(hu.evidence)}</div></div>
     ${voCaption(sc.vo)}${sc.extra ? `<p class="small">${esc(sc.extra)}</p>` : ''}${microLink(sc.micro)}<div id="hb"><button class="btn" id="sv">${S.huellas[sc.stop] ? 'Huella guardada ✓ · continuar' : 'Guardar huella'}</button></div>`;
-  wireMicro(s, sc); speak(sc.vo);
+  wireMicro(s, sc); speak(sc.vo, sc.id);
   $('#sv', s).onclick = () => {
     if (opts.review) return opts.onExit();
     S.huellas[sc.stop] = true; save(); sfx.motif(st.n - 1);
@@ -1212,7 +1219,7 @@ function openMicro(id, parent) {
     <button class="btn" id="vb" style="margin-top:16px">Volver</button></div></section>`);
   (parent || app).appendChild(ov);
   if (!parent) { ov.style.position = 'absolute'; }
-  speak(m.vo);
+  speak(m.vo, id);
   if (m.art === 'counter') { const c = $('#cnt', ov), t0 = performance.now(); const tick = t => { const p = Math.min(1, (t - t0) / 2000), e = 1 - Math.pow(1 - p, 3); c.textContent = Math.round(150000 * e).toLocaleString('es-CO'); if (p < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick); beep(1200, .05); }
   if (m.art === 'peso') $('#peso', ov).animate([{ transform: 'translateY(-60px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 400, easing: 'cubic-bezier(.3,1.4,.6,1)' });
   if (m.art === 'cabinet') $$('.shelf', ov).forEach(g => g.onclick = () => { $$('.shelf', ov).forEach(x => x.classList.remove('on')); g.classList.add('on'); $('#shelf', ov).textContent = m.shelves[+g.dataset.i]; sfx.tap(); });
@@ -1277,7 +1284,7 @@ function showResults() {
     <div class="row-btns"><button class="btn" id="sh">Guardar mi tarjeta</button></div>
     <div class="row-btns"><button class="btn sm ghost" id="hm">Volver al inicio</button><button class="btn sm ghost" id="mi">Repasar microhistorias</button></div>
     <button class="link" id="cr" style="margin-top:12px">Créditos y fuentes</button></div></section>`));
-  speak(VO_BV.results); sfx.motif();
+  speak(VO_BV.results, 'DF-10'); sfx.motif();
   $('#hm', s).onclick = showHome; $('#mi', s).onclick = () => { showHome(); later(() => $('#micro') && $('#micro').scrollIntoView(), 100); }; $('#cr', s).onclick = showInfo;
   $('#sh', s).onclick = () => shareCard(first);
 }

@@ -3,8 +3,11 @@
    IMÁGENES: deja tus fotos en la carpeta assets/ y escribe aquí su nombre de archivo.
    Mientras una imagen sea null, la app muestra una ilustración o un aviso de "foto pendiente". */
 const IMAGES = {
-  // Fotos actuales propias (portadas de cada parada). Ej.: 'assets/plaza-hoy.jpg'
-  heroPB: null, heroMA: null, heroPC: null,
+  // Fotos actuales propias. Ej.: 'assets/fotos/FOTO-PB-PORTADA.jpg'
+  heroWelcome: null,                 // FOTO-PORTADA-APP: portada vertical de la app
+  heroPB: null, heroMA: null, heroPC: null,   // FOTO-xx-PORTADA: tarjetas y ficha de cada parada
+  viewPB: null, viewMA: null, viewPC: null,   // FOTO-xx-PUNTO: vista desde el QR (modo sin cámara y contornos)
+  detailPC: null,                    // FOTO-PC-DETALLE: revoque ajedrezado de cerca (lupa de PC-03)
   // Fotos de archivo (deben tener crédito y licencia antes de publicarse)
   'IMG-PB-01': null, // Sector antes de la plaza (anterior a 1998), hacia la fachada del museo
   'IMG-PB-02': null, // Foto actual desde el mismo punto de IMG-PB-01
@@ -13,6 +16,15 @@ const IMAGES = {
   'IMG-MA-03': null, // Obra del Grupo Stoa o inauguración de 2000
   'IMG-PC-01': null, // Retrato de Agustín Goovaerts
   'IMG-PC-02': null  // Teatro Junín–Hotel Europa
+};
+/* AUDIOS grabados de la voz de la Archivista. Cuando un audio exista, la app lo usa en lugar de la voz sintética.
+   Ej.: 'PB-01': 'assets/audio/PB-01.m4a' */
+const AUDIO = {
+  'BV-02': null, 'BV-03': null, 'BV-05': null, 'BV-06': null,
+  'PB-01': null, 'PB-02': null, 'PB-03': null, 'PB-04': null, 'PB-M1': null, 'PB-M2': null, 'PB-M3': null,
+  'MA-01': null, 'MA-02-HOY': null, 'MA-02-2000': null, 'MA-02-1987': null, 'MA-02-1937': null, 'MA-03-A': null, 'MA-03-B': null, 'MA-04': null, 'MA-M1': null, 'MA-M2': null,
+  'PC-01': null, 'PC-02': null, 'PC-03': null, 'PC-04': null, 'PC-M1': null, 'PC-M2': null,
+  'DF-10': null
 };
 const CREDITS = { // crédito que se muestra junto a cada foto de archivo cuando exista
   'IMG-PB-01': '', 'IMG-MA-01': '', 'IMG-MA-02': '', 'IMG-MA-03': '', 'IMG-PC-01': '', 'IMG-PC-02': ''
